@@ -1,0 +1,93 @@
+﻿4. Create Node.js to write and read from products. json
+const http = require("http");
+const fs = require("fs");
+const path = require("path");
+
+const DATA_FILE = path.join(__dirname, "products.json");
+const hostname = "127.0.0.1";
+const port = 3000;
+
+function readProducts() {
+  if (!fs.existsSync(DATA_FILE)) return [];
+  const data = fs.readFileSync(DATA_FILE, "utf-8");
+  return JSON.parse(data || "[]");
+}
+
+function writeProducts(products) {
+  fs.writeFileSync(DATA_FILE, JSON.stringify(products, null, 2));
+}
+
+const server = http.createServer((req, res) => {
+  const url = req.url;
+  const method = req.method;
+
+  res.setHeader("Content-Type", "application/json");
+
+  // GET all products
+  if (url === "/products" && method === "GET") {
+    const products = readProducts();
+    res.end(JSON.stringify(products));
+  }
+
+  // POST new product
+  else if (url === "/products" && method === "POST") {
+    let body = "";
+
+    req.on("data", chunk => {
+      body += chunk.toString();
+    });
+
+    req.on("end", () => {
+      try {
+        const newProduct = JSON.parse(body); // ✅ Parse JSON body
+
+        if (!newProduct.name || !newProduct.price) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ error: "Name and price are required" }));
+        }
+
+        const products = readProducts();
+        products.push(newProduct);
+        writeProducts(products);
+
+        res.statusCode = 201;
+        res.end(JSON.stringify({ message: "Product added successfully" }));
+      } catch (error) {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ error: "Invalid JSON data" })); // ❌ Triggered if JSON is wrong
+      }
+    });
+  }
+
+  // Handle unknown routes
+  else {
+    res.statusCode = 404;
+    res.end(JSON.stringify({ error: "Route not found" }));
+  }
+});
+
+server.listen(port, hostname, () => {
+  console.log(`Server running at http://${hostname}:${port}/`);
+});
+
+
+
+
+Postman Setup
+Step 1 - Set Request
+* Method → POST
+* URL → http://127.0.0.1:3000/products
+Step 2 - Headers
+* Go to Headers tab
+Add this:
+* Key: Content-Type
+* Value: application/json
+Step 3 - Body
+* Go to Body tab
+* Select raw
+* Select JSON from the dropdown on the right.
+* Enter this JSON:
+{
+  "name": "iPhone",
+  "price": 499
+
