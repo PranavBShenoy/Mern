@@ -1,102 +1,75 @@
-9. Create a simple REST API using Express.js, MongoDB and Mongoose that allows
-users to interact with a database. The API should support the following actions:
-a. Create: Add a new user to the database.
-b. Read: Retrieve all users from the database.
-c. Update: Update a user's information in the database (document id)
-d. Delete: Delete a user from the database (document id).
-The database will store basic user information such as name, and email.
+const express = require('express');
+const bodyParser = require('body-parser');
+const cors = require('cors');
 
-*********************************************************************
-const express = require('express')
-const mongoose = require('mongoose')
-const app = express()
-// Middleware to parse JSON body
-app.use(express.json())
-// Connect to MongoDB
-async function connectDB() {
-try {
-await mongoose.connect('mongodb://127.0.0.1:27017/users')
-console.log("Connected to MongoDB")
-} catch (err) {
-console.error("MongoDB connection error:", err)
-}
-}
-connectDB()
-// Define Mongoose model with flexible schema
-const User = mongoose.model('User', new mongoose.Schema({}, { strict: false,versionKey:
-false }), 'users')
-// ==================== ROUTES ====================
-// POST /users — Create a new user
-app.post('/users', async (req, res) => {
-try {
-const userData = req.body
-const result = await User.create(userData)
-res.status(201).json({ message: "User created successfully", user: result })
-} catch (err) {
+const app = express();
+const PORT = 3000;
 
-console.error(err)
-res.status(500).json({ error: "Error creating user" })
-}
-})
+app.use(cors());
+app.use(bodyParser.json());
+app.use(express.static('public'));
 
-//GET /users — Fetch all users
-app.get('/users', async (req, res) => {
-try {
-const users = await User.find()
-res.json(users)
-} catch (err) {
-console.error(err)
-res.status(500).json({ error: "Error fetching users" })
-}
+let items = [];
+let idCounter = 1;
+
+// GET all items
+app.get('/items', (req, res) => {
+    res.json(items);
 });
 
-// GET /users/:id — Fetch a specific user by ID
-app.get('/users/:id', async (req, res) => {
-try {
-const user = await User.findById(req.params.id)
+// POST a new item
+app.post('/items', (req, res) => {
+   const { name, description, price } = req.body;
 
-if (!user) {
-return res.status(404).json({ error: "User not found" })
-}
+  if (!name)
+      return res.status(400).json({ error: 'Name is required' });
 
-res.json(user)
-} catch (err) {
-console.error(err)
-res.status(500).json({ error: "Error fetching user" })
-}
-})
+  const newItem = {
+    id: idCounter++,
+    name,
+    description,
+    price
+      };
 
-// PUT /users/:id — Update a user by ID
-
-app.put('/users/:id', async (req, res) => {
-try {
-const userId = req.params.id
-const updateData = req.body
-const updatedUser = await User.findByIdAndUpdate(userId, updateData, { new: true })
-if (!updatedUser) {
-return res.status(404).json({ message: "User not found" })
-}
-res.json({ message: "User updated successfully", user: updatedUser })
-} catch (err) {
-console.error(err)
-res.status(500).json({ error: "Error updating user" })
-}
-})
-// DELETE /users/:id — Delete a user by ID
-app.delete('/users/:id', async (req, res) => {
-try {
-const userId = req.params.id
-const deletedUser = await User.findByIdAndDelete(userId)
-if (!deletedUser) {
-return res.status(404).json({ message: "User not found" })
-}
-res.json({ message: "User deleted successfully", user: deletedUser })
-} catch (err) {
-console.error(err)
-res.status(500).json({ error: "Error deleting user" })
-}
+      items.push(newItem);
+      res.status(201).json(newItem);
 });
+
+// PUT update item by ID
+app.put('/items/:id', (req, res) => {
+   const { id } = req.params;
+   const { name, description, price } = req.body;
+
+      const item = items.find(i => i.id === parseInt(id));
+
+      if (!item)
+          return res.status(404).json({ error: 'Item not found' });
+
+      if (!name || !description || price == null)
+          return res.status(400).json({ error: 'All fields are required' });
+
+      item.name = name;
+      item.description = description;
+      item.price = price;
+
+      res.json(item);
+});
+
+// DELETE item by ID
+app.delete('/items/:id', (req, res) => {
+   const { id } = req.params;
+
+      const index = items.findIndex(i => i.id === parseInt(id));
+
+      if (index === -1)
+          return res.status(404).json({ error: 'Item not found' });
+
+      items.splice(index, 1);
+
+      res.status(200).send('Item deleted successfully!');
+});
+
 // Start server
-app.listen(3000)
-
-
+app.listen(PORT, () => {
+    console.log(`Server running at http://localhost:${PORT}`);
+});
